@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoRA Test Gallery</title>
+<style>
+:root {
+  --bg: #111118;
+  --surface: #1a1a2e;
+  --surface2: #222240;
+  --surface3: #2a2a4a;
+  --accent: #e94560;
+  --accent2: #6c63ff;
+  --text: #eaeaea;
+  --text-dim: #888;
+  --text-muted: #555;
+  --border: #333;
+  --radius: 6px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ── Layout ──────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── Header ──────────────────────────────────────────────── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  position: sticky; top: 0; z-index: 50;
+}
+header h1 { font-size: 1.15em; white-space: nowrap; letter-spacing: -0.3px; }
+header h1 span { color: var(--accent); }
+.hdr-sep { color: var(--text-muted); }
+
+.btn {
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 5px 12px; font-size: 0.82em; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: var(--surface3); border-color: var(--text-muted); }
+.btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.export-btn { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+.btn.export-btn:hover { opacity: 0.85; }
+
+select.ctrl {
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 5px 8px; font-size: 0.82em; cursor: pointer;
+}
+label.ctrl { font-size: 0.8em; color: var(--text-dim); }
+
+/* folder input */
+#folder-input { display: none; }
+.folder-btn { border-style: dashed !important; }
+
+/* ── Project Info Bar ────────────────────────────────────── */
+#project-bar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 8px 20px; font-size: 0.8em; color: var(--text-dim);
+  display: none; align-items: center; gap: 16px;
+}
+#project-bar .tag {
+  background: var(--surface3); padding: 2px 10px; border-radius: 12px;
+  font-size: 0.85em;
+}
+
+/* ── Welcome Screen ──────────────────────────────────────── */
+#welcome {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 24px; padding: 60px 20px; text-align: center;
+}
+#welcome h2 { font-size: 1.6em; font-weight: 300; }
+#welcome p { color: var(--text-dim); max-width: 500px; line-height: 1.6; }
+#welcome .drop-zone {
+  border: 2px dashed var(--border); border-radius: 12px;
+  padding: 40px 60px; cursor: pointer; transition: border-color 0.2s;
+}
+#welcome .drop-zone:hover, #welcome .drop-zone.dragover {
+  border-color: var(--accent);
+}
+
+/* ── Gallery Area ────────────────────────────────────────── */
+#gallery { padding: 20px; flex: 1; display: none; }
+
+/* ── Grid View ───────────────────────────────────────────── */
+.grid-wrap { overflow-x: auto; }
+.grid-table { border-collapse: collapse; }
+.grid-table th {
+  background: var(--surface); position: sticky; top: 0; z-index: 2;
+  padding: 10px 8px; font-size: 0.82em; color: var(--text-dim);
+  border-bottom: 2px solid var(--accent); white-space: nowrap;
+}
+.grid-table th.corner { background: var(--surface); }
+.grid-table td { padding: 4px; text-align: center; vertical-align: top; }
+.grid-table td img {
+  border-radius: var(--radius); cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.grid-table td img:hover { transform: scale(1.04); box-shadow: var(--shadow); z-index: 1; position: relative; }
+.grid-table .prompt-cell {
+  font-size: 0.78em; color: var(--text-dim); text-align: left;
+  padding: 8px 10px; vertical-align: middle; max-width: 220px;
+  word-wrap: break-word; line-height: 1.4;
+}
+
+/* ── Strips View ─────────────────────────────────────────── */
+.strip-section { margin-bottom: 28px; }
+.strip-prompt {
+  font-size: 0.85em; color: var(--text-dim); margin-bottom: 8px;
+  padding-left: 4px; border-left: 3px solid var(--accent); padding: 4px 10px;
+}
+.strip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.strip-card { position: relative; flex-shrink: 0; }
+.strip-card img { border-radius: var(--radius); cursor: pointer; display: block; }
+.strip-card img:hover { box-shadow: var(--shadow); }
+.str-badge {
+  position: absolute; top: 5px; left: 5px;
+  background: rgba(0,0,0,0.75); color: #fff; padding: 1px 8px;
+  border-radius: 10px; font-size: 0.72em; pointer-events: none;
+}
+
+/* ── Side-by-Side ────────────────────────────────────────── */
+.sbs-controls {
+  display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap;
+}
+.side-by-side { display: flex; gap: 16px; align-items: flex-start; }
+.sbs-panel { flex: 1; min-width: 0; }
+.sbs-panel img { width: 100%; border-radius: var(--radius); cursor: pointer; display: block; }
+.sbs-panel .panel-label {
+  text-align: center; padding: 6px; font-size: 0.82em; color: var(--text-dim);
+}
+
+/* ── A/B Slider ──────────────────────────────────────────── */
+.ab-wrap { max-width: 900px; }
+.ab-container {
+  position: relative; overflow: hidden; border-radius: var(--radius);
+  cursor: col-resize; user-select: none; line-height: 0;
+}
+.ab-container img { display: block; width: 100%; pointer-events: none; }
+.ab-overlay {
+  position: absolute; top: 0; left: 0; height: 100%; overflow: hidden;
+}
+.ab-overlay img { display: block; height: 100%; }
+.ab-line {
+  position: absolute; top: 0; width: 2px; height: 100%;
+  background: var(--accent); pointer-events: none;
+}
+.ab-handle {
+  position: absolute; top: 50%; width: 32px; height: 32px;
+  margin-top: -16px; margin-left: -16px; border-radius: 50%;
+  background: var(--accent); border: 2px solid #fff;
+  pointer-events: none; display: flex; align-items: center; justify-content: center;
+  font-size: 0.7em; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.ab-label {
+  position: absolute; top: 8px; padding: 2px 10px;
+  background: rgba(0,0,0,0.75); color: #fff; border-radius: 10px;
+  font-size: 0.72em; pointer-events: none;
+}
+.ab-label-l { left: 8px; }
+.ab-label-r { right: 8px; }
+
+/* ── Export Panel ────────────────────────────────────────── */
+#export-panel {
+  display: none; position: fixed; top: 0; right: 0; bottom: 0;
+  width: 360px; background: var(--surface); border-left: 1px solid var(--border);
+  z-index: 60; padding: 20px; overflow-y: auto; box-shadow: -4px 0 20px rgba(0,0,0,0.5);
+}
+#export-panel.open { display: block; }
+#export-panel h3 { margin-bottom: 16px; font-size: 1em; }
+#export-panel .field { margin-bottom: 14px; }
+#export-panel .field label { display: block; font-size: 0.82em; color: var(--text-dim); margin-bottom: 4px; }
+#export-panel .field select, #export-panel .field input {
+  width: 100%; background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 6px 10px; font-size: 0.85em;
+}
+#export-panel .preview-area {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin: 12px 0; background: var(--bg); min-height: 100px;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+#export-panel .preview-area canvas { max-width: 100%; height: auto; }
+.export-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* ── Lightbox ────────────────────────────────────────────── */
+#lightbox {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.94); justify-content: center; align-items: center;
+  cursor: zoom-out; flex-direction: column;
+}
+#lightbox.open { display: flex; }
+#lightbox img { max-width: 95vw; max-height: 90vh; border-radius: var(--radius); }
+#lightbox .lb-info {
+  margin-top: 12px; background: rgba(0,0,0,0.6); padding: 6px 18px;
+  border-radius: 20px; font-size: 0.82em; color: var(--text-dim);
+}
+#lightbox .lb-nav {
+  position: absolute; top: 50%; font-size: 2em; color: #fff;
+  cursor: pointer; padding: 20px; opacity: 0.5;
+}
+#lightbox .lb-nav:hover { opacity: 1; }
+#lightbox .lb-prev { left: 10px; }
+#lightbox .lb-next { right: 10px; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .side-by-side { flex-direction: column; }
+  #export-panel { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Header -->
+<header>
+  <h1>LoRA <span>Gallery</span></h1>
+  <span class="hdr-sep">|</span>
+  <label for="folder-input" class="btn folder-btn" title="Open a project folder">Open Project</label>
+  <input type="file" id="folder-input" webkitdirectory multiple>
+  <span class="hdr-sep" id="view-sep" style="display:none">|</span>
+  <div id="view-buttons" style="display:none">
+    <button class="btn active" data-view="grid" onclick="setView('grid')">Grid</button>
+    <button class="btn" data-view="strips" onclick="setView('strips')">Strips</button>
+    <button class="btn" data-view="sbs" onclick="setView('sbs')">Side-by-Side</button>
+    <button class="btn" data-view="ab" onclick="setView('ab')">A/B Slider</button>
+  </div>
+  <span class="hdr-sep" id="size-sep" style="display:none">|</span>
+  <div id="size-ctrl" style="display:none">
+    <label class="ctrl">Size:</label>
+    <select class="ctrl" id="thumb-size" onchange="render()">
+      <option value="140">S</option>
+      <option value="220" selected>M</option>
+      <option value="340">L</option>
+      <option value="512">XL</option>
+    </select>
+  </div>
+  <div style="flex:1"></div>
+  <button class="btn export-btn" id="export-toggle" style="display:none" onclick="toggleExport()">Export PNG</button>
+</header>
+
+<!-- Project Info -->
+<div id="project-bar">
+  <span id="proj-name" style="font-weight:600; color:var(--text)"></span>
+  <span class="tag" id="proj-lora"></span>
+  <span class="tag" id="proj-date"></span>
+  <span class="tag" id="proj-count"></span>
+  <span id="proj-notes" style="flex:1; font-style: italic;"></span>
+</div>
+
+<!-- Welcome -->
+<div id="welcome">
+  <h2>LoRA Test Gallery</h2>
+  <p>Open a project folder generated by <code>lora_test.py</code> to browse and compare results across prompts and LoRA strengths.</p>
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('folder-input').click()">
+    <p style="font-size:1.1em; margin-bottom:8px;">Drop project folder here</p>
+    <p style="font-size:0.85em; color:var(--text-dim);">or click to browse</p>
+  </div>
+  <p style="font-size:0.8em; color:var(--text-muted);">
+    Each project folder should contain <code>manifest.json</code> and an <code>images/</code> subfolder.
+  </p>
+</div>
+
+<!-- Gallery -->
+<div id="gallery"></div>
+
+<!-- Export Panel -->
+<div id="export-panel">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h3>Export for Sharing</h3>
+    <button class="btn" onclick="toggleExport()" style="font-size:0.8em;">Close</button>
+  </div>
+
+  <div class="field">
+    <label>Layout</label>
+    <select id="exp-layout" onchange="updateExportPreview()">
+      <option value="full-grid">Full Grid (prompts x strengths)</option>
+      <option value="single-row">Single Prompt Strip</option>
+      <option value="comparison-2">Two-Strength Comparison</option>
+      <option value="comparison-3">Three-Strength Comparison</option>
+      <option value="before-after">Before / After (0 vs max)</option>
+    </select>
+  </div>
+
+  <div class="field" id="exp-prompt-field">
+    <label>Prompt</label>
+    <select id="exp-prompt" onchange="updateExportPreview()"></select>
+  </div>
+
+  <div class="field" id="exp-str1-field">
+    <label>Strength A</label>
+    <select id="exp-str1" onchange="updateExportPreview()"></select>
+  </div>
+
+  <div class="field" id="exp-str2-field">
+    <label>Strength B</label>
+    <select id="exp-str2" onchange="updateExportPreview()"></select>
+  </div>
+
+  <div class="field" id="exp-str3-field" style="display:none">
+    <label>Strength C</label>
+    <select id="exp-str3" onchange="updateExportPreview()"></select>
+  </div>
+
+  <div class="field">
+    <label>Labels</label>
+    <select id="exp-labels" onchange="updateExportPreview()">
+      <option value="strengths">Show Strengths</option>
+      <option value="prompts">Show Prompts</option>
+      <option value="both">Show Both</option>
+      <option value="none">No Labels</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Background</label>
+    <select id="exp-bg" onchange="updateExportPreview()">
+      <option value="#111118">Dark</option>
+      <option value="#ffffff">White</option>
+      <option value="#000000">Black</option>
+      <option value="transparent">Transparent</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Title (optional)</label>
+    <input type="text" id="exp-title" placeholder="e.g. zit-c64 LoRA comparison" oninput="updateExportPreview()">
+  </div>
+
+  <div class="preview-area" id="exp-preview"></div>
+
+  <div class="export-actions">
+    <button class="btn export-btn" onclick="doExport()">Download PNG</button>
+    <button class="btn" onclick="copyExport()">Copy to Clipboard</button>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox(event)">
+  <div class="lb-prev lb-nav" onclick="lbNav(-1)">&#8249;</div>
+  <div class="lb-next lb-nav" onclick="lbNav(1)">&#8250;</div>
+  <img id="lb-img" src="">
+  <div class="lb-info" id="lb-info"></div>
+</div>
+</div>
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+let manifest = null;
+let imageUrls = {};      // local_filename -> object URL
+let currentView = 'grid';
+let lbImages = [];       // flat list of {src, info} for lightbox nav
+let lbIndex = 0;
+let exportCanvas = null;
+
+// ── Load Project Folder ─────────────────────────────────────────────────────
+document.getElementById('folder-input').addEventListener('change', loadFolder);
+
+// Drag and drop on welcome zone
+const dropZone = document.getElementById('drop-zone');
+['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => {
+  ev.preventDefault(); dropZone.classList.add('dragover');
+}));
+['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => {
+  ev.preventDefault(); dropZone.classList.remove('dragover');
+}));
+dropZone.addEventListener('drop', ev => {
+  // Folder drop uses dataTransfer.items with webkitGetAsEntry
+  const items = ev.dataTransfer.items;
+  if (items && items.length) {
+    // Fallback: trigger file input
+    // (Direct folder drop via entries API is complex; just prompt the picker)
+    document.getElementById('folder-input').click();
+  }
+});
+
+async function loadFolder(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+
+  // Find manifest.json
+  const manifestFile = files.find(f => f.name === 'manifest.json');
+  if (!manifestFile) {
+    alert('No manifest.json found in this folder.\nMake sure you select a project folder generated by lora_test.py.');
+    return;
+  }
+
+  const text = await manifestFile.text();
+  manifest = JSON.parse(text);
+
+  // Load images from images/ subfolder
+  imageUrls = {};
+  const imageFiles = files.filter(f =>
+    /\.(png|jpg|jpeg|webp)$/i.test(f.name) &&
+    f.webkitRelativePath.includes('/images/')
+  );
+  for (const f of imageFiles) {
+    imageUrls[f.name] = URL.createObjectURL(f);
+  }
+
+  // Show UI
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('gallery').style.display = 'block';
+  document.getElementById('view-sep').style.display = '';
+  document.getElementById('view-buttons').style.display = '';
+  document.getElementById('size-sep').style.display = '';
+  document.getElementById('size-ctrl').style.display = '';
+  document.getElementById('export-toggle').style.display = '';
+
+  // Project bar
+  const bar = document.getElementById('project-bar');
+  bar.style.display = 'flex';
+  document.getElementById('proj-name').textContent = manifest.name || manifest.lora_slug;
+  document.getElementById('proj-lora').textContent = manifest.lora_slug;
+  document.getElementById('proj-date').textContent = manifest.date;
+  document.getElementById('proj-count').textContent =
+    `${manifest.prompts.length} prompts \u00d7 ${manifest.strengths.length} strengths`;
+  document.getElementById('proj-notes').textContent = manifest.notes || '';
+
+  populateExportControls();
+  render();
+}
+
+// ── Image URL ───────────────────────────────────────────────────────────────
+function imgSrc(entry) {
+  if (!entry) return '';
+  return imageUrls[entry.local_filename] || '';
+}
+
+function getImage(pi, strength) {
+  return manifest.images.find(
+    e => e.prompt_index === pi && Math.abs(e.strength - strength) < 0.001
+  );
+}
+
+// ── Thumb size ──────────────────────────────────────────────────────────────
+function tw() { return parseInt(document.getElementById('thumb-size').value); }
+
+// ── Views ───────────────────────────────────────────────────────────────────
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  render();
+}
+
+function render() {
+  if (!manifest) return;
+  const el = document.getElementById('gallery');
+  buildLightboxList();
+  switch (currentView) {
+    case 'grid': renderGrid(el); break;
+    case 'strips': renderStrips(el); break;
+    case 'sbs': renderSBS(el); break;
+    case 'ab': renderAB(el); break;
+  }
+}
+
+// ── Lightbox list (for arrow nav) ───────────────────────────────────────────
+function buildLightboxList() {
+  lbImages = [];
+  for (let pi = 0; pi < manifest.prompts.length; pi++) {
+    for (const s of manifest.strengths) {
+      const img = getImage(pi, s);
+      if (img) {
+        lbImages.push({
+          src: imgSrc(img),
+          info: `"${manifest.prompts[pi]}" \u2014 str ${s.toFixed(2)} \u2014 seed ${img.seed}`
+        });
+      }
+    }
+  }
+}
+
+// ── Grid ────────────────────────────────────────────────────────────────────
+function renderGrid(el) {
+  const w = tw();
+  let h = '<div class="grid-wrap"><table class="grid-table"><thead><tr><th class="corner">Prompt</th>';
+  for (const s of manifest.strengths) h += `<th>str ${s.toFixed(2)}</th>`;
+  h += '</tr></thead><tbody>';
+  for (let pi = 0; pi < manifest.prompts.length; pi++) {
+    h += `<tr><td class="prompt-cell">${esc(manifest.prompts[pi])}</td>`;
+    for (const s of manifest.strengths) {
+      const img = getImage(pi, s);
+      const src = imgSrc(img);
+      const info = `"${manifest.prompts[pi]}" \u2014 str ${s.toFixed(2)}`;
+      const idx = lbImages.findIndex(x => x.src === src);
+      h += `<td><img src="${src}" width="${w}" loading="lazy"
+        onclick="openLightbox(${idx})" title="${esc(info)}"></td>`;
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+  el.innerHTML = h;
+}
+
+// ── Strips ──────────────────────────────────────────────────────────────────
+function renderStrips(el) {
+  const w = tw();
+  let h = '';
+  for (let pi = 0; pi < manifest.prompts.length; pi++) {
+    h += '<div class="strip-section">';
+    h += `<div class="strip-prompt">${esc(manifest.prompts[pi])}</div>`;
+    h += '<div class="strip-row">';
+    for (const s of manifest.strengths) {
+      const img = getImage(pi, s);
+      const src = imgSrc(img);
+      const idx = lbImages.findIndex(x => x.src === src);
+      h += `<div class="strip-card" style="width:${w}px">
+        <div class="str-badge">${s.toFixed(2)}</div>
+        <img src="${src}" width="${w}" loading="lazy" onclick="openLightbox(${idx})">
+      </div>`;
+    }
+    h += '</div></div>';
+  }
+  el.innerHTML = h;
+}
+
+// ── Side-by-Side ────────────────────────────────────────────────────────────
+function renderSBS(el) {
+  const strs = manifest.strengths;
+  let h = '<div class="sbs-controls">';
+  h += '<label class="ctrl">Prompt:</label><select class="ctrl" id="sbs-prompt">';
+  manifest.prompts.forEach((p, i) => { h += `<option value="${i}">${esc(p)}</option>`; });
+  h += '</select>';
+  h += '<label class="ctrl">Left:</label><select class="ctrl" id="sbs-left">';
+  strs.forEach((s, i) => { h += `<option value="${s}" ${i === 0 ? 'selected' : ''}>str ${s.toFixed(2)}</option>`; });
+  h += '</select>';
+  h += '<label class="ctrl">Right:</label><select class="ctrl" id="sbs-right">';
+  strs.forEach((s, i) => { h += `<option value="${s}" ${i === strs.length - 1 ? 'selected' : ''}>str ${s.toFixed(2)}</option>`; });
+  h += '</select>';
+  h += '<button class="btn" onclick="updateSBS()">Compare</button>';
+  h += '</div><div id="sbs-panels" class="side-by-side"></div>';
+  el.innerHTML = h;
+  updateSBS();
+}
+
+function updateSBS() {
+  const pi = parseInt(document.getElementById('sbs-prompt').value);
+  const sl = parseFloat(document.getElementById('sbs-left').value);
+  const sr = parseFloat(document.getElementById('sbs-right').value);
+  const srcL = imgSrc(getImage(pi, sl));
+  const srcR = imgSrc(getImage(pi, sr));
+  const idxL = lbImages.findIndex(x => x.src === srcL);
+  const idxR = lbImages.findIndex(x => x.src === srcR);
+
+  document.getElementById('sbs-panels').innerHTML = `
+    <div class="sbs-panel">
+      <div class="panel-label">str ${sl.toFixed(2)}</div>
+      <img src="${srcL}" onclick="openLightbox(${idxL})">
+    </div>
+    <div class="sbs-panel">
+      <div class="panel-label">str ${sr.toFixed(2)}</div>
+      <img src="${srcR}" onclick="openLightbox(${idxR})">
+    </div>`;
+}
+
+// ── A/B Slider ──────────────────────────────────────────────────────────────
+function renderAB(el) {
+  const strs = manifest.strengths;
+  let h = '<div class="sbs-controls">';
+  h += '<label class="ctrl">Prompt:</label><select class="ctrl" id="ab-prompt">';
+  manifest.prompts.forEach((p, i) => { h += `<option value="${i}">${esc(p)}</option>`; });
+  h += '</select>';
+  h += '<label class="ctrl">A (left):</label><select class="ctrl" id="ab-left">';
+  strs.forEach((s, i) => { h += `<option value="${s}" ${i === 0 ? 'selected' : ''}>str ${s.toFixed(2)}</option>`; });
+  h += '</select>';
+  h += '<label class="ctrl">B (right):</label><select class="ctrl" id="ab-right">';
+  strs.forEach((s, i) => { h += `<option value="${s}" ${i === strs.length - 1 ? 'selected' : ''}>str ${s.toFixed(2)}</option>`; });
+  h += '</select>';
+  h += '<button class="btn" onclick="updateAB()">Compare</button>';
+  h += '</div><div id="ab-panel" class="ab-wrap"></div>';
+  el.innerHTML = h;
+  updateAB();
+}
+
+function updateAB() {
+  const pi = parseInt(document.getElementById('ab-prompt').value);
+  const sl = parseFloat(document.getElementById('ab-left').value);
+  const sr = parseFloat(document.getElementById('ab-right').value);
+  const srcL = imgSrc(getImage(pi, sl));
+  const srcR = imgSrc(getImage(pi, sr));
+
+  const panel = document.getElementById('ab-panel');
+  panel.innerHTML = `
+    <div class="ab-container" id="ab-box">
+      <img src="${srcR}" id="ab-base" draggable="false">
+      <div class="ab-overlay" id="ab-over" style="width:50%">
+        <img src="${srcL}" id="ab-over-img" draggable="false">
+      </div>
+      <div class="ab-line" id="ab-divider" style="left:50%">
+        <div class="ab-handle">\u2194</div>
+      </div>
+      <div class="ab-label ab-label-l">A: ${sl.toFixed(2)}</div>
+      <div class="ab-label ab-label-r">B: ${sr.toFixed(2)}</div>
+    </div>`;
+
+  const box = document.getElementById('ab-box');
+  const baseImg = document.getElementById('ab-base');
+  let dragging = false;
+
+  function setPos(x) {
+    const rect = box.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+    document.getElementById('ab-over').style.width = (pct * 100) + '%';
+    const div = document.getElementById('ab-divider');
+    div.style.left = (pct * 100) + '%';
+    const overImg = document.getElementById('ab-over-img');
+    overImg.style.width = rect.width + 'px';
+  }
+
+  box.addEventListener('mousedown', e => { dragging = true; setPos(e.clientX); });
+  window.addEventListener('mousemove', e => { if (dragging) setPos(e.clientX); });
+  window.addEventListener('mouseup', () => { dragging = false; });
+  box.addEventListener('touchstart', e => { dragging = true; setPos(e.touches[0].clientX); }, {passive: true});
+  window.addEventListener('touchmove', e => { if (dragging) setPos(e.touches[0].clientX); }, {passive: true});
+  window.addEventListener('touchend', () => { dragging = false; });
+
+  baseImg.addEventListener('load', () => {
+    const overImg = document.getElementById('ab-over-img');
+    if (overImg) overImg.style.width = baseImg.clientWidth + 'px';
+  });
+}
+
+// ── Lightbox ────────────────────────────────────────────────────────────────
+function openLightbox(idx) {
+  if (idx < 0 || idx >= lbImages.length) return;
+  lbIndex = idx;
+  document.getElementById('lb-img').src = lbImages[idx].src;
+  document.getElementById('lb-info').textContent = lbImages[idx].info;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(e) {
+  if (e && (e.target.classList.contains('lb-nav') || e.target.closest('.lb-nav'))) return;
+  document.getElementById('lightbox').classList.remove('open');
+}
+function lbNav(dir) {
+  lbIndex = (lbIndex + dir + lbImages.length) % lbImages.length;
+  document.getElementById('lb-img').src = lbImages[lbIndex].src;
+  document.getElementById('lb-info').textContent = lbImages[lbIndex].info;
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox({});
+  if (e.key === 'ArrowLeft') lbNav(-1);
+  if (e.key === 'ArrowRight') lbNav(1);
+});
+
+// ── Export ───────────────────────────────────────────────────────────────────
+function toggleExport() {
+  document.getElementById('export-panel').classList.toggle('open');
+  if (document.getElementById('export-panel').classList.contains('open')) {
+    updateExportPreview();
+  }
+}
+
+function populateExportControls() {
+  if (!manifest) return;
+  // Prompts
+  const pSel = document.getElementById('exp-prompt');
+  pSel.innerHTML = '';
+  manifest.prompts.forEach((p, i) => {
+    pSel.innerHTML += `<option value="${i}">${esc(p)}</option>`;
+  });
+  // Strengths for A/B/C
+  ['exp-str1', 'exp-str2', 'exp-str3'].forEach((id, si) => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '';
+    manifest.strengths.forEach((s, i) => {
+      const defaultIdx = si === 0 ? 0 : si === 1 ? manifest.strengths.length - 1 :
+        Math.floor(manifest.strengths.length / 2);
+      sel.innerHTML += `<option value="${s}" ${i === defaultIdx ? 'selected' : ''}>str ${s.toFixed(2)}</option>`;
+    });
+  });
+  // Title default
+  document.getElementById('exp-title').value = manifest.name || '';
+}
+
+async function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function updateExportPreview() {
+  const canvas = await buildExportCanvas();
+  if (!canvas) return;
+  exportCanvas = canvas;
+  const preview = document.getElementById('exp-preview');
+  preview.innerHTML = '';
+  preview.appendChild(canvas);
+}
+
+async function buildExportCanvas() {
+  if (!manifest) return null;
+
+  const layout = document.getElementById('exp-layout').value;
+  const labels = document.getElementById('exp-labels').value;
+  const bg = document.getElementById('exp-bg').value;
+  const title = document.getElementById('exp-title').value.trim();
+  const pi = parseInt(document.getElementById('exp-prompt').value);
+  const s1 = parseFloat(document.getElementById('exp-str1').value);
+  const s2 = parseFloat(document.getElementById('exp-str2').value);
+  const s3 = parseFloat(document.getElementById('exp-str3').value);
+
+  // Show/hide fields based on layout
+  const showPrompt = layout !== 'full-grid';
+  const showStr3 = layout === 'comparison-3';
+  const showStr12 = ['comparison-2', 'comparison-3', 'before-after'].includes(layout);
+  document.getElementById('exp-prompt-field').style.display = showPrompt ? '' : 'none';
+  document.getElementById('exp-str1-field').style.display = showStr12 ? '' : 'none';
+  document.getElementById('exp-str2-field').style.display = showStr12 ? '' : 'none';
+  document.getElementById('exp-str3-field').style.display = showStr3 ? '' : 'none';
+
+  // Gather images to render
+  let grid = []; // array of rows, each row = array of {img, labelTop, labelBottom}
+  let colHeaders = [];
+  let rowHeaders = [];
+
+  if (layout === 'full-grid') {
+    colHeaders = manifest.strengths.map(s => `str ${s.toFixed(2)}`);
+    for (let p = 0; p < manifest.prompts.length; p++) {
+      const row = [];
+      rowHeaders.push(manifest.prompts[p]);
+      for (const s of manifest.strengths) {
+        const entry = getImage(p, s);
+        row.push({ src: imgSrc(entry), str: s, prompt: manifest.prompts[p] });
+      }
+      grid.push(row);
+    }
+  } else if (layout === 'single-row') {
+    for (const s of manifest.strengths) {
+      const entry = getImage(pi, s);
+      if (!grid.length) grid.push([]);
+      grid[0].push({ src: imgSrc(entry), str: s, prompt: manifest.prompts[pi] });
+    }
+    colHeaders = manifest.strengths.map(s => `str ${s.toFixed(2)}`);
+  } else if (layout === 'comparison-2') {
+    grid.push([
+      { src: imgSrc(getImage(pi, s1)), str: s1, prompt: manifest.prompts[pi] },
+      { src: imgSrc(getImage(pi, s2)), str: s2, prompt: manifest.prompts[pi] },
+    ]);
+    colHeaders = [`str ${s1.toFixed(2)}`, `str ${s2.toFixed(2)}`];
+  } else if (layout === 'comparison-3') {
+    grid.push([
+      { src: imgSrc(getImage(pi, s1)), str: s1, prompt: manifest.prompts[pi] },
+      { src: imgSrc(getImage(pi, s3)), str: s3, prompt: manifest.prompts[pi] },
+      { src: imgSrc(getImage(pi, s2)), str: s2, prompt: manifest.prompts[pi] },
+    ]);
+    colHeaders = [`str ${s1.toFixed(2)}`, `str ${s3.toFixed(2)}`, `str ${s2.toFixed(2)}`];
+  } else if (layout === 'before-after') {
+    grid.push([
+      { src: imgSrc(getImage(pi, s1)), str: s1, prompt: manifest.prompts[pi] },
+      { src: imgSrc(getImage(pi, s2)), str: s2, prompt: manifest.prompts[pi] },
+    ]);
+    colHeaders = ['Before', 'After'];
+  }
+
+  if (!grid.length || !grid[0].length) return null;
+
+  // Load all images
+  const allSrcs = new Set();
+  grid.forEach(row => row.forEach(cell => allSrcs.add(cell.src)));
+  const loaded = {};
+  for (const src of allSrcs) {
+    if (src) {
+      try { loaded[src] = await loadImage(src); }
+      catch { /* skip */ }
+    }
+  }
+
+  // Canvas sizing
+  const cellSize = 512;
+  const gap = 8;
+  const labelH = (labels !== 'none') ? 36 : 0;
+  const rowLabelW = (labels === 'prompts' || labels === 'both') && rowHeaders.length ? 200 : 0;
+  const titleH = title ? 52 : 0;
+  const cols = grid[0].length;
+  const rows = grid.length;
+  const canvasW = rowLabelW + cols * cellSize + (cols - 1) * gap;
+  const canvasH = titleH + labelH + rows * cellSize + (rows - 1) * gap;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvasW;
+  canvas.height = canvasH;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  if (bg !== 'transparent') {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+  }
+
+  const textColor = (bg === '#ffffff') ? '#222' : '#eee';
+
+  // Title
+  if (title) {
+    ctx.fillStyle = textColor;
+    ctx.font = 'bold 28px Segoe UI, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(title, canvasW / 2, 36);
+  }
+
+  // Column headers
+  if (labels === 'strengths' || labels === 'both') {
+    ctx.fillStyle = textColor;
+    ctx.font = '18px Segoe UI, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    for (let c = 0; c < cols; c++) {
+      const x = rowLabelW + c * (cellSize + gap) + cellSize / 2;
+      ctx.fillText(colHeaders[c] || '', x, titleH + 24);
+    }
+  }
+
+  // Draw grid
+  for (let r = 0; r < rows; r++) {
+    const y = titleH + labelH + r * (cellSize + gap);
+
+    // Row label
+    if (rowLabelW && rowHeaders[r]) {
+      ctx.fillStyle = textColor;
+      ctx.font = '14px Segoe UI, system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      // Word wrap in row label area
+      const words = rowHeaders[r].split(' ');
+      let line = '';
+      let ly = y + cellSize / 2 - 10;
+      for (const word of words) {
+        const test = line + (line ? ' ' : '') + word;
+        if (ctx.measureText(test).width > rowLabelW - 16) {
+          ctx.fillText(line, rowLabelW - 10, ly);
+          line = word;
+          ly += 18;
+        } else {
+          line = test;
+        }
+      }
+      ctx.fillText(line, rowLabelW - 10, ly);
+    }
+
+    for (let c = 0; c < cols; c++) {
+      const x = rowLabelW + c * (cellSize + gap);
+      const cell = grid[r][c];
+      const img = loaded[cell.src];
+      if (img) {
+        // Draw image scaled to fit cell
+        const scale = Math.min(cellSize / img.width, cellSize / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        const dx = x + (cellSize - dw) / 2;
+        const dy = y + (cellSize - dh) / 2;
+        ctx.drawImage(img, dx, dy, dw, dh);
+      } else {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x, y, cellSize, cellSize);
+      }
+    }
+  }
+
+  return canvas;
+}
+
+async function doExport() {
+  if (!exportCanvas) await updateExportPreview();
+  if (!exportCanvas) return;
+  const link = document.createElement('a');
+  const layout = document.getElementById('exp-layout').value;
+  const slug = manifest.lora_slug || 'export';
+  link.download = `${manifest.date}_${slug}_${layout}.png`;
+  link.href = exportCanvas.toDataURL('image/png');
+  link.click();
+}
+
+async function copyExport() {
+  if (!exportCanvas) await updateExportPreview();
+  if (!exportCanvas) return;
+  try {
+    exportCanvas.toBlob(async blob => {
+      await navigator.clipboard.write([new ClipboardItem({'image/png': blob})]);
+    }, 'image/png');
+  } catch (err) {
+    alert('Copy failed. Try downloading instead.');
+  }
+}
+
+// ── Utils ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>
