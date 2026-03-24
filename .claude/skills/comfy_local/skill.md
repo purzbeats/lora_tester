@@ -279,6 +279,100 @@ For batch jobs, poll every 3s and report progress every ~20 completions.
 - If the server is down, tell the user to start ComfyUI
 - On HTTP 400, read the error body — it contains `node_errors` with specific input validation failures
 - **Always validate node inputs** against `/object_info/{NodeType}` before first use — template parameter names are often wrong
+- **If a model file is missing**, use the Missing Model Resolver (below) to find and download it
+
+## Missing Model Resolver
+
+When a workflow fails because a model file is missing, or when the user asks you to check/install models for a workflow, follow this procedure.
+
+### Step 1: Identify required models
+
+Check the workflow JSON for **MarkdownNote** nodes (often titled "Model Links"). These contain:
+- HuggingFace download URLs for each model
+- A **Model Folder Structure** section mapping filenames to ComfyUI subdirectories
+
+```python
+# Find MarkdownNote nodes in a workflow JSON
+import json
+wf = json.load(open("workflow.json"))
+for node in wf.get("nodes", []):
+    if node.get("type") == "MarkdownNote":
+        print(node.get("title", ""), node["widgets_values"][0])
+```
+
+If the workflow has no MarkdownNote, check the loader nodes (`UNETLoader`, `CheckpointLoaderSimple`, `CLIPLoader`, `VAELoader`, `LoraLoader`, `LoraLoaderModelOnly`, `LatentUpscaleModelLoader`, etc.) — their `widgets_values` contain the expected model filenames.
+
+### Step 2: Check what's installed
+
+Query the ComfyUI API to see what models are currently available:
+
+```bash
+# Check specific loader types
+curl -s http://localhost:8188/object_info/UNETLoader | python -c "
+import json,sys; data=json.load(sys.stdin)
+for m in data['UNETLoader']['input']['required']['unet_name'][0]: print(m)"
+
+curl -s http://localhost:8188/object_info/CheckpointLoaderSimple | python -c "
+import json,sys; data=json.load(sys.stdin)
+for m in data['CheckpointLoaderSimple']['input']['required']['ckpt_name'][0]: print(m)"
+```
+
+Or list files directly on disk:
+
+```bash
+ls C:/ai/ComfyUI/models/diffusion_models/
+ls C:/ai/ComfyUI/models/vae/
+ls C:/ai/ComfyUI/models/text_encoders/
+ls C:/ai/ComfyUI/models/loras/
+ls C:/ai/ComfyUI/models/latent_upscale_models/
+```
+
+### Step 3: Download missing models from HuggingFace
+
+**Critical:** Convert HuggingFace URLs from `/blob/main/` to `/resolve/main/` for direct download. Use `curl -L` to follow redirects.
+
+```bash
+# Pattern: curl -L -o <dest_path> <resolve_url>
+curl -L -o "C:/ai/ComfyUI/models/vae/LTX23_audio_vae_bf16.safetensors" \
+  "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_audio_vae_bf16.safetensors"
+```
+
+**Always confirm with the user before downloading** — model files are large (often 1-20+ GB). Show them the list of missing models and URLs first.
+
+### ComfyUI models directory
+
+```
+C:/ai/ComfyUI/models/
+├── diffusion_models/    # UNETLoader, CheckpointLoaderSimple
+├── vae/                 # VAELoader, LTXVAudioVAELoader
+├── text_encoders/       # CLIPLoader, LTXAVTextEncoderLoader
+├── loras/               # LoraLoader, LoraLoaderModelOnly
+├── latent_upscale_models/  # LatentUpscaleModelLoader
+├── checkpoints/         # CheckpointLoaderSimple (alternative)
+└── clip/                # CLIPLoader (alternative)
+```
+
+### Common HuggingFace repos for ComfyUI models
+
+| Repo | Models |
+|------|--------|
+| `Kijai/LTX2.3_comfy` | LTX 2.3 diffusion, VAE, text encoders, loras (fp8 scaled variants) |
+| `Lightricks/LTX-2.3` | LTX 2.3 official upscalers |
+| `Comfy-Org/ltx-2` | LTX split files (text encoders) |
+| `Comfy-Org/workflow_templates` | Workflow references |
+
+### Handling "model not found" errors at runtime
+
+When ComfyUI returns an error like `"xyz.safetensors" not found`:
+
+1. Search the workflow's MarkdownNote for the filename to find the HuggingFace URL
+2. If no MarkdownNote, search HuggingFace: `https://huggingface.co/models?search=<filename>`
+3. Identify the correct models subfolder by checking which loader node references it
+4. Confirm with the user, then download:
+   ```bash
+   curl -L --progress-bar -o "C:/ai/ComfyUI/models/<subfolder>/<filename>" "<resolve_url>"
+   ```
+5. After download, ComfyUI auto-detects new files — no restart needed for most loaders. If the model still isn't found, the user may need to restart ComfyUI.
 
 ## LoRA Testing Tool (`lora_test.py`)
 
