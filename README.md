@@ -94,12 +94,16 @@ projects/
 
 The gallery is a single HTML file with no dependencies. Open it in any browser.
 
+<img width="925" height="781" alt="image" src="https://github.com/user-attachments/assets/94d5cea1-4777-4920-9137-bcf6796d4501" />
+
 ### View Modes
 
 - **Grid** -- rows = prompts, columns = strengths. The classic comparison matrix.
 - **Strips** -- each prompt as a horizontal filmstrip with strength badges.
 - **Side-by-Side** -- pick any two strengths to compare for a selected prompt.
 - **A/B Slider** -- drag a handle to reveal between two strengths for pixel-level comparison.
+
+<img width="2535" height="1268" alt="image" src="https://github.com/user-attachments/assets/dbc7affe-6c25-482e-b5a2-25abd8f36adf" />
 
 ### Exporting
 
