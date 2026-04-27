@@ -1,3 +1,11 @@
 projects/
+cloud_projects/
+cloud_outputs/
+images/
 __pycache__/
 *.pyc
+.env
+
+# Per-developer Claude Code settings — may include local Bash command grants
+# that contain secrets approved during interactive sessions. Never commit.
+.claude/settings.local.json

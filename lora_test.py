@@ -18,17 +18,22 @@ DATE = date.today().strftime("%Y%m%d")
 PROJECTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "projects")
 
 # ── Configuration ────────────────────────────────────────────────────────────
+# Edit these before running, OR pass --lora / --strengths on the CLI.
+# Run `python lora_test.py --list-loras` first to see what's installed locally.
+# If your lora has a trigger word (e.g. "c64, "), prepend it to each prompt.
 
-LORA = "z_image_turbo\\zit-c64.safetensors"
+LORA = "REPLACE_WITH_YOUR_LORA.safetensors"   # e.g. "z_image_turbo\\my-lora.safetensors"
 
 STRENGTHS = [0.0, 0.25, 0.5, 0.75, 1.0]
 
+# Generic prompts covering varied subjects so any lora's effect is visible.
+# Replace with subject matter your lora was trained on.
 PROMPTS = [
-    "tw_tvshow, empty hotel hallway with flickering fluorescent lights and faded wallpaper",
-    "tw_tvshow, abandoned shopping mall food court at night with one light still on",
-    "tw_tvshow, rain-soaked alley between apartment buildings with laundry hanging still",
-    "tw_tvshow, deserted swimming pool with turquoise water and no one around",
-    "tw_tvshow, dimly lit karaoke room with velvet couches and a glowing screen",
+    "a portrait of a person looking thoughtfully into the distance",
+    "a wide mountain landscape at golden hour with a river running through it",
+    "a futuristic city street at night with neon lights and rain reflections",
+    "a fox curled up among autumn leaves in a forest clearing",
+    "a cozy interior with bookshelves, a fireplace, and warm afternoon light",
 ]
 
 # Image dimensions
